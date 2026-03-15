@@ -1,0 +1,387 @@
+---
+title: "Individual Assignment - BAA5063 Business Statistics Using R"
+author: "ARITRA PAUL - Student ID: 25049008"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document: default
+  word_document: default
+---
+# 01. Load Libraries.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)      # Includes dplyr, ggplot2, readr, forcats, etc.
+library(janitor)        # For clean_names()
+library(caret)          # For createDataPartition() and ML utilities
+library(randomForest)   # For random forest model
+library(reshape2)       # For melt() function (used in heatmap)
+library(GGally)         # For ggpairs
+library(factoextra)     # For clustering visualization (fviz_nbclust)
+library(knitr)          # For neat table output (kable)
+library(scales)         # For comma labels in plots
+set.seed(123)
+```
+
+# 02. Read data
+```{r read-data}
+# Read the uploaded CSV
+df <- read_csv("C:/Users/aritr/OneDrive/Sunway Studies/BAA5063-Business Statistics Using R/Individual Assignment/Final Submission/cardekho_dataset.csv")
+```
+# 03. Basic checks
+```{r}
+glimpse(df)
+summary(df)
+dim(df)
+```
+# 04. Missing Value Summary
+```{r}
+missing_report <- colSums(is.na(df))
+missing_report
+```
+
+# 05. Clean Data
+```{r}
+df <- df %>%
+  rename(
+    price = selling_price,
+    fuel = fuel_type,
+    transmission = transmission_type
+  ) %>%
+  mutate(
+    age = as.integer(vehicle_age),
+    price_per_km = price / (km_driven + 1)
+  )
+
+# Trim unnecessary column names
+df <- df %>% select(-`...1`)
+
+glimpse(df)
+```
+
+# 06. Filter The Data
+```{r}
+df <- df %>%
+filter(!is.na(price), !is.na(km_driven)) %>%
+  filter(price > 50000 & price < 5000000)
+```
+
+# 07. Feature Engineering
+```{r}
+df <- df %>%
+  mutate(
+    brand = fct_lump_min(as.factor(brand), min = 20),
+    model = fct_lump_n(as.factor(model), n = 30),
+    fuel = as.factor(fuel),
+    transmission = as.factor(transmission),
+    seller_type = as.factor(seller_type),
+    age_group = case_when(
+      age <= 3 ~ "0-3",
+      age <= 7 ~ "4-7",
+      TRUE ~ "8+"
+    ),
+    km_per_year = km_driven / pmax(age, 0.5)
+  )
+glimpse(df)
+```
+
+# 08. Create a Tidy Numeric-Only df for Correlation / Plotting
+```{r}
+num_df <- df %>% select(where(is.numeric)) %>% select_if(~sd(., na.rm=TRUE) != 0)
+glimpse(num_df)
+```
+
+# 09. Exploratory Data Analysis
+
+## 09.1. Histogram of Distibution of Listing Prices
+
+```{r}
+ggplot(df, aes(x = price)) +
+  geom_histogram(bins = 80 ,fill="lightblue" , col = "black") +
+  scale_x_continuous(labels = scales::comma) +
+  labs(title = "Distribution of Listing Prices", x = "Selling Price (INR)", y = "Count")+
+  theme_minimal()
+```
+
+## 09.2. Top 10 Brands by Average Price
+
+```{r}
+top_brands <- df %>%
+  group_by(brand) %>%
+  summarise(n = n(), avg_price = mean(price, na.rm = TRUE)) %>%
+  arrange(desc(n)) %>%
+  slice(1:10)
+
+ggplot(top_brands, aes(x = reorder(brand, avg_price), y = avg_price)) +
+  geom_col(fill="darkolivegreen2") +
+  coord_flip() + 
+  labs(title = "Top 10 Brands by Average Price", x = "Brand", y = "Average Price")+
+  theme_minimal()
+```
+
+## 09.3. Box Plot (Selling Price by Fuel Type)
+
+```{r fig.width=10, fig.height=5}
+ggplot(df, aes(x = fuel, y = price)) +
+  geom_boxplot(outlier.color = "red", outlier.shape = 100)+
+  scale_y_continuous(labels =scales::comma) + labs(title = "Price of Cars as Per Fuel Type", x = "Fuel Type", y="Selling Price (INR)")+
+  theme_minimal()
+```
+
+## 09.4. Price Vs Age
+
+```{r}
+ggplot(df, aes(x = age, y = price)) +
+  geom_point(alpha = 0.3, col = "hotpink4") +
+  geom_smooth(method = "loess") +
+  scale_y_continuous(labels =scales::comma)+
+  labs(title = "Selling Price of Car With Respect to Age", x = "Age (years)", y = "Selling Price (INR)")+
+  theme_minimal()
+```
+
+## 09.5. Price Vs Age (Based on Transmission)
+
+```{r}
+ggplot(df, aes(x = vehicle_age, y = price, color = transmission)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") + 
+  scale_y_continuous(labels =scales::comma) + labs(title = "Price of Cars as According to Age of Vehicle WRT Transmission", x = "Age of Vehicle", y= "Selling Price (INR)",color="Transmission")+
+  theme_minimal()
+```
+
+## 09.6. Correlation Matrix & Heatmap
+
+```{r}
+# Correlation matrix
+cor_matrix <- cor(num_df, use = "complete.obs")
+cor_matrix
+
+# Reshape for ggplot
+cor_m <- melt(cor_matrix)
+
+
+# Enhanced heatmap with values and size control
+
+heatMap <- ggplot(cor_m, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  
+  # Add correlation values as text
+  geom_text(aes(label = round(value, 2)), color = "black", size = 3.5) +
+  
+  # Custom color palette
+  scale_fill_gradientn(colors = c("violetred1", "lavender", "turquoise"),
+                       limits = c(-1, 1),
+                       name = "Correlation") +
+  
+  # Improve readability
+  theme_minimal(base_size = 13.5) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
+  labs(title = "Correlation Heatmap", x = "", y = "")
+
+heatMap
+```
+
+```{r fig.width=14, fig.height=10}
+ggpairs_df <- df %>% 
+  select(price, age, km_driven, km_per_year,transmission) %>%
+  drop_na()
+
+# Create the ggpairs plot
+ggpairs(
+  ggpairs_df,
+  columns = 1:4,
+  aes(color = transmission, alpha = 0.6),
+  upper = list(continuous = wrap("cor", size = 5)),   # show correlation in upper
+  lower = list(continuous = wrap("points", alpha = 0.4, size = 1)), # scatter below
+  diag = list(continuous = wrap("densityDiag"))       # density plots on diagonal
+) +
+  theme_bw() +
+  theme(
+    text = element_text(size = 18),
+    axis.text.x = element_text(angle = 90, hjust = 1)
+  )+ scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma)
+```
+
+# 10. Train-Test Split
+
+```{r}
+train_index <- createDataPartition(df$price, p = 0.8, list = FALSE)
+train <- df[train_index, ]
+test  <- df[-train_index, ]
+
+cols_to_fix <- c("fuel", "transmission", "seller_type", "brand", "model")
+for (col in cols_to_fix) {
+  test[[col]] <- factor(test[[col]], levels = levels(train[[col]]))
+}
+```
+
+# 11. Linear Regression on Train Set
+
+## 11.1. Model 1
+```{r}
+model1 <- lm(
+  log(price) ~ age,
+  data = train)
+
+summary(model1)
+
+```
+
+## 11.2. Model 2
+
+```{r}
+model2 <- lm(
+  log(price) ~ age + log(km_driven + 1),
+  data = train)
+
+summary(model2)
+
+```
+
+## 11.3. Model 3
+
+```{r}
+model3 <- lm(
+  log(price) ~ age + log(km_driven + 1) + fuel,
+  data = train)
+
+summary(model3)
+
+```
+
+## 11.4. Model 4
+
+```{r}
+model4 <- lm(
+  log(price) ~ age + log(km_driven + 1) + fuel + transmission,
+  data = train)
+
+summary(model4)
+
+```
+
+## 11.5. Model 5
+
+```{r}
+model5 <- lm(
+  log(price) ~ age + log(km_driven + 1) + fuel + transmission + seller_type ,
+  data = train)
+
+summary(model5)
+
+```
+
+## 11.6. Model 6
+
+```{r}
+model6 <- lm(
+  log(price) ~ age + log(km_driven + 1) + fuel + transmission + seller_type + brand ,
+  data = train)
+
+summary(model6)
+
+```
+
+## 11.7. Model 7
+
+```{r}
+model7 <- lm(
+  log(price) ~ age + log(km_driven + 1) + fuel + transmission + seller_type + brand + model,
+  data = train)
+
+summary(model7)
+```
+```{r}
+# Compare R² values
+
+c(summary(model1)$r.squared,
+  summary(model2)$r.squared,
+  summary(model3)$r.squared,
+  summary(model4)$r.squared,
+  summary(model5)$r.squared,
+  summary(model6)$r.squared,
+  summary(model7)$r.squared)
+```
+
+# 12. Diagnostics
+
+```{r}
+plot(model7, col="yellow3", which = c(1))
+plot(model7, col="red", which = c(2))
+plot(model7, col="skyblue", which = c(3))
+plot(model7, col="red", which = c(4))
+
+```
+
+# 13. Prediction on Test Set (Linear Regression)
+
+```{r}
+pred_lm <- exp(predict(model7, newdata = test))
+
+lm_rmse <- sqrt(mean((pred_lm - test$price)^2, na.rm = TRUE))
+lm_mae  <- mean(abs(pred_lm - test$price), na.rm = TRUE)
+lm_r2   <- 1 - sum((pred_lm - test$price)^2, na.rm = TRUE) /
+                sum((mean(train$price, na.rm = TRUE) - test$price)^2, na.rm = TRUE)
+
+list(RMSE = lm_rmse, MAE = lm_mae, r2 = lm_r2)
+```
+
+# 14. Training, and Prediction on Test Set (Random Forest)
+
+```{r}
+train_rf <- train %>% sample_n(min(nrow(train), 15000))
+
+rf <- randomForest(
+   price ~ age + km_driven+ fuel + transmission + seller_type + brand + model,
+  data = train_rf,
+  ntree = 200,
+  importance = TRUE
+)
+
+rf_pred <- predict(rf, newdata = test)
+
+rf_rmse <- sqrt(mean((rf_pred - test$price)^2, na.rm = TRUE))
+rf_mae  <- mean(abs(rf_pred - test$price), na.rm = TRUE)
+rf_r2   <- 1 - sum((rf_pred - test$price)^2, na.rm = TRUE) /
+                sum((mean(train$price, na.rm = TRUE) - test$price)^2, na.rm = TRUE)
+
+list(rmse = rf_rmse, mae = rf_mae, r2 = rf_r2)
+
+```
+
+# 15. Model Performance Comparison
+
+```{r}
+results <- tibble(
+  Model = c("Linear Regression", "Random Forest"),
+  RMSE = c(lm_rmse, rf_rmse),
+  MAE = c(lm_mae, rf_mae),
+  R2 = c(lm_r2, rf_r2)
+)
+knitr::kable(results, caption = "**Model Performance Comparison**")
+```
+
+# 16. Variable Importance
+
+```{r}
+# Variable Importance - Random Forest
+options(scipen = 999)
+importance(rf)
+varImpPlot(rf, main = "Variable Importance", col = "red", pch = 18)
+```
+
+
+# 17. Clustering
+
+```{r}
+clu_df <- df %>% select(price, age, km_per_year) %>% drop_na()
+clu_scaled <- scale(clu_df)
+fviz_nbclust(clu_scaled, kmeans, method = "wss")
+km <- kmeans(clu_scaled, centers = 4, nstart = 25)
+
+# Assigning Cluster Labels
+clu_df$cluster <- factor(km$cluster)
+
+# Cluster Counts
+table(clu_df$cluster)
+```
+
