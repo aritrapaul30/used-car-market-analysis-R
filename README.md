@@ -36,8 +36,8 @@ This R-based project investigates the key determinants of used car resale prices
 | Figure | What It Shows | Key Insight |
 |---|---|---|
 | 📊 Fig 1 | Price histogram | Right-skewed → justifies log(price) |
-| 🏷️ Fig 2 | Brand vs price boxplot | Toyota/BMW retain value; Datsun depreciates fast |
-| ⛽ Fig 3 | Fuel type vs price | Diesel/Hybrid commands higher medians |
+| 🏷️ Fig 2 | Brand vs price barplot | Toyota/BMW retain value; Datsun depreciates fast |
+| ⛽ Fig 3 | Fuel type vs price | Diesel commands higher medians |
 | 📉 Fig 4 | Age vs price scatter | Strong negative concave curve — rapid early depreciation |
 | 🔄 Fig 5 | Age vs price by transmission | Automatics fetch higher prices at every age |
 | 🔥 Fig 6 | Correlation heatmap | Age strongest negative predictor; km moderate |
