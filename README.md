@@ -16,7 +16,7 @@ This R-based project investigates the key determinants of used car resale prices
 ---
 
 ### 2️⃣ 📦 Data Loading & Preparation
-> Vehicle resale dataset sourced from a car trading platform
+> Vehicle resale dataset sourced from kaggle (https://www.kaggle.com/datasets/riddhivernekar/cardekho-dataset)
 
 | Detail | Value |
 |---|---|
