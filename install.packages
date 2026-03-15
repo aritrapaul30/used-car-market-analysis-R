@@ -1,0 +1,2 @@
+install.packages(c("tidyverse", "ggplot2", "GGally", "randomForest",
+                   "caret", "cluster", "factoextra", "car"))
