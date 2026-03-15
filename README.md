@@ -13,16 +13,20 @@ This R-based project investigates the key determinants of used car resale prices
   (age, mileage, brand, fuel) drives price
 - 💼 **Who Benefits** — Dealerships, resellers, auto platforms, and individual buyers
 
+
 ---
 
-### 2️⃣ 📦 Data Loading & Preparation
-> Vehicle resale dataset sourced from kaggle (https://www.kaggle.com/datasets/riddhivernekar/cardekho-dataset)
+### 2️⃣ 📦 Data Description & Preparation
+> Vehicle resale dataset sourced from kaggle
 
 | Detail | Value |
 |---|---|
+| 📊 Observations | 15,411 listings |
+| 📋 Variables | 14 columns |
+| 🌐 Source | [Kaggle: cardekho_dataset.csv](https://www.kaggle.com/datasets/riddhivernekar/cardekho-dataset) |
 | 🎯 Target Variable | `selling_price` (log-transformed) |
 | 📋 Key Variables | `year`, `km_driven`, `fuel`, `transmission`, `seller_type`, `brand`, `model` |
-| 🔧 Prep Steps | Removed duplicates, standardised column names, encoded categoricals |
+| 🔧 Prep Steps | Removed duplicates, standardised column names, encoded categoricals 
 
 **Transformations Applied:**
 - 💰 `price` → `log(price)` to fix right-skew & heteroscedasticity
